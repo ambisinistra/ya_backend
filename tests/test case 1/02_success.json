@@ -1,0 +1,17 @@
+{
+    "type": "GET",
+    "address" : "/couriers/2"
+}
+
+|||||
+
+{
+    "code": 200,
+    "body":
+    {
+        "courier_id": 2,
+        "courier_type": "bike",
+        "regions": [22],
+        "working_hours": ["00:00-12:00"]
+    }
+}
