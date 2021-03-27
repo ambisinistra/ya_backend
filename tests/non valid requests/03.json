@@ -1,0 +1,38 @@
+    {
+        "type" : "POST",
+        "address" : "/couriers",
+        "body" :
+            {
+        
+            "data":
+                [
+                    {
+                        "courier_id": 1,
+                        "courier_type": "foot",
+                        "regions": [2, 6],
+                        "working_hours":
+                            []
+                    },
+    
+                    {
+                        "courier_id": 2,
+                        "courier_type": "foot",
+                        "regions": [22],
+                        "working_hours": ["12:00-15:00"]
+                    }
+                ]
+            }
+    }
+
+|||||
+
+    {
+        "code" : 400,
+        "body" :
+        {
+            "validation_error":
+            {
+                "couriers":
+                    {"id": 1},
+            }
+        }

@@ -1,0 +1,39 @@
+    {
+        "type" : "POST",
+        "address" : "/couriers",
+        "body" :
+            {
+        
+            "data":
+                [
+                    {
+                        "courier_id": 1,
+                        "religion" : "catholic",
+                        "courier_type": "foot",
+                        "regions": [2, 6],
+                        "working_hours":
+                            ["11:35-14:05", "15:00-20:00"]
+                    },
+    
+                    {
+                        "courier_id": 2,
+                        "courier_type": "foot",
+                        "regions": [22],
+                        "working_hours": ["12:00-15:00"]
+                    }
+                ]
+            }
+    }
+
+|||||
+
+    {
+        "code" : 400,
+        "body" :
+        {
+            "validation_error":
+            {
+                "couriers":
+                    {"id": 1},
+            }
+        }
