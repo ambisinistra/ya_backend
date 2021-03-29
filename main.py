@@ -44,6 +44,7 @@ class Courier_work_hours(db.Model):
     courier_id = db.Column(db.Integer, db.ForeignKey("couriers"))
     start_time = db.Column(db.Integer)
     end_time = db.Column(db.Integer)
+    text = db.Column(db.String)
 
     def __init__(self, hours, courier_id):
         start, end = hours.split('-')
@@ -54,6 +55,7 @@ class Courier_work_hours(db.Model):
         assert 0 <= start_m <= 59
         assert 0 <= end_m <= 59
 
+        self.text = hours
         self.start_time = start_h * 60 + start_m
         self.end_time = end_h * 60 + end_m
         self.courier_id = courier_id
@@ -201,31 +203,47 @@ def patch_couriers(courier_id):
     couriers = Courier.query.filter_by(courier_id=request.json["courier_id"]).all()
     if not couriers:
         return ("Courier not found", 404)
+
+    weights = {"foot": 1000, "bike": 1500, "car": 5000}
     courier = couriers[0]
-    result = {"courier_id": courier_id, "courier_type": 0, "working_hours": [], "regions": []}
+    new_weight = weights[courier.courier_type]
+    old_regions = Courier_regions.query.filter_by(courier_id=courier.courier_id).all()
+    old_regions_ids = [old_region.]
+    old_wo_hours = Courier_work_hours.query.filter_by(courier_id=courier_id).all()
+
     if True:
+
+        result = {"courier_id" : courier_id}
+        get_regions = Courier_regions.query.filter_by(courier_id=courier_id).all()
+        result["regions"] = [region.region for region in get_regions]
+        result["courier_type"] = courier.cour_type
+        get_hours = Courier_work_hours.query.filter_by(courier_id=couriel_id).all()
+        result["working_hours"] = [hour.text for hour in get_hours]
+
         wrong_orders = []
         if "regions" in request.json.keys():
             assert reqest.json["regions"]
-            old_regions = Courier_regions.query.filter_by(courier_id=courier.courier_id)
+            result["regions"] = request.json["regions"]
             for old_region in old_regions:
                 db.session.delete(old_region)
-            for new_region in courier["regions"]:
+            for new_region in request.json["regions"]:
                 region_to_commit = Courier_regions(region=new_region, courier_id=courier["courier_id"])
                 db.session.add(region_to_commit)
-            wrong_orders.append(Order.query.filter_by(assigned_to=courier["courier_id"]).filter_by(completed=0).filter(not_(Order.region.in_(courier["regions"]))).all())
+            wrong_orders.extend(Order.query.filter_by(assigned_to=courier["courier_id"]).filter_by(completed=0).filter(not_(Order.region.in_(courier["regions"]))).all())
+            old_regions = [new_region for ]
 
         if "courier_type" in request.json.keys():
-            weights = {"foot": 1000, "bike": 1500, "car": 5000}
+            result["courier_type"] = request.json["courier_type"]
             old_weight = weights[courier.courier_type]
             new_weight = weights[request.json["courier_type"]]
             assert request.json["courier_type"] in ["foot", "bike", "car"]
             courier.courier_type = request.json["courier_type"]
             if old_weight > new_weight:
-                wrong_orders.append(Order.query.filter_by(assigned_to=courier.courier_id).filter_by(completed=0).filter(Order.weight > new_weight).all())
+                wrong_orders.extend(Order.query.filter_by(assigned_to=courier.courier_id).filter_by(completed=0).filter(Order.weight > new_weight).all())
 
         if "working_hours" in request.json.keys():
             assert request.json["working_hours"]
+            result["working_hours"] = request.json["working_hours"]
             orders = Order.query.filter_by(assigned_to=courier_id).filter_by(completed=0).all()
             order_ids = [order.order_id for order in orders]
             good_order = dict(zip(order_ids, [False] * len(order_ids)))
@@ -241,8 +259,9 @@ def patch_couriers(courier_id):
 
         for wr_order in wrong_orders:
             wr_order.assigned_to = 0
-
+        
         db.session.commit()
+        return (result, 200)
     else:
         return ("Bad request", 400)
 
