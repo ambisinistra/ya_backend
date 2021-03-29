@@ -68,8 +68,11 @@ class Order(db.Model):
     region = db.Column(db.Integer)
     deli_hours = db.relationship("Deli_hours", backref="order")
 
-    assigned_to = db.Column(db.Integer)
+    assigned_to = db.Column(db.Integer, default=0)
     assigned_when = db.Column(db.DateTime)
+
+    completed = db.Column(db.Integer, default=0)
+    completed_when = db.Column(db.DateTime)
 
 class Deli_hours(db.Model):
     __tablename__ = "deli_hours"
@@ -118,6 +121,8 @@ def post_couriers():
 
         try:
             assert courier["courier_id"] > 0
+            assert courier["working_hours"]
+            assert courier["regions"]
             for hours in courier["working_hours"]:
                 hours_to_commit = Courier_work_hours(hours=hours, courier_id=courier["courier_id"])
                 db.session.add(hours_to_commit)
@@ -142,9 +147,9 @@ def post_couriers():
 @app.route("/orders", methods=["POST"])
 def post_orders():
     if not request.is_json:
-        abort (400, message="Data format not json")
+        return abort (400, message="Data format not json")
     if "data" not in request.json.keys():
-        abort (400, message="Data not found")
+        return abort (400, message="Data not found")
 
     result = {"orders" : [] }
     failure = {"validation_error": {"orders": [] }}
@@ -162,9 +167,10 @@ def post_orders():
             except:
                 return abort(400)
 
-        if True:
+        try:
             assert order["order_id"] > 0
             assert order["region"] > 0
+            assert order["delivery_hours"]
             weight = int(order["weight"] * 100)
             assert 1 <= weight <= 5000
             for hours in order["delivery_hours"]:
@@ -176,7 +182,7 @@ def post_orders():
                 order_to_commit = Order(order_id=order["order_id"], weight=order["weight"], region=order["region"])
                 db.session.add(order_to_commit)
                 result["orders"].append(order["order_id"])
-        else:
+        except:
             failure["validation_error"]["orders"].append(order["order_id"])
 
     print (failure["validation_error"]["orders"])
@@ -189,15 +195,44 @@ def post_orders():
 @app.route("/couriers/<courier_id>", methods=["PATCH"])
 def patch_couriers(courier_id):
     if not request.is_json:
-        abort (400, message="Data format not json")
+        return abort (400, message="Data format not json")
     if "data" not in request.json.keys():
-        abort (400, message="Data not found")
+        return abort (400, message="Data not found")
 
     return {404: "not implemented"}
 
 
 @app.route("/orders/assign", methods=["POST"])
 def assign_orders():
+    if not request.is_json:
+        return abort (400, message="Data format not json")
+    if "courier_id" not in request.json.keys():
+        return abort (400, message="Courier was'nt sent")
+
+    weights = {"foot": 10.0, "bike": 15.0, "car": 50.0}
+    courier = Courier.query.filter_by(courier_id=request.json["courier_id"]).all()
+    
+    if not courier:
+        return abort (400)
+
+    capacity = weights[courier[0].courier_type]
+    cour_id = courier[0].courier_id
+    regions = Courier_regions.query.filter_by(courier_id=cour_id).all()
+    regions = [region.region for region in regions]
+    hours = Courier_work_hours.query.filter_by(courier_id=cour_id).all()
+
+    potential_orders = Order.query.filter_by(assigned_to=0).filter_by(completed=0).filter(Order.region.in_(regions)).all()
+    po_ids = [po.order_id for po in potential_orders]
+
+    orders_to_accept = []
+
+
+    for hour in hours:
+        start, end = hour.start_time, hour.end_time
+        delivers = Deli_hours.query.filter(Deli_hours.order_id.in_(po_ids)).all()
+
+
+    print (orders_to_accept)
     return {404: "not implemented"}
 
 
