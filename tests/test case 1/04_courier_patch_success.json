@@ -1,0 +1,21 @@
+{
+    "type" : "PATCH",
+    "address" : "/couriers/2",
+    "body":
+    {
+        "working_hours" : ["00:00-15:00"]
+    }
+}
+
+|||||
+
+{
+    "code": 200,
+    "body":
+    {
+        "courier_id" : 2,
+        "courier_type" : "foot",
+        "working_hours" : ["00:00-15:00"],
+        "regions": [22]
+    }
+}

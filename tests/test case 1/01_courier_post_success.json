@@ -16,7 +16,7 @@
 
                 {
                     "courier_id": 2,
-                    "courier_type": "bike",
+                    "courier_type": "foot",
                     "regions": [22],
                     "working_hours": ["00:00-12:00"]
                 }

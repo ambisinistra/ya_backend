@@ -1,7 +1,7 @@
 import datetime
 from dateutil import parser
 
-from flask import Flask, request
+from flask import Flask, request, jsonify
 from flask_restful import Api
 from flask_sqlalchemy import SQLAlchemy
 
@@ -105,11 +105,12 @@ class Deli_hours(db.Model):
 def post_couriers():
     if not request.is_json:
         return ("Data format is not json type", 400)
+
+    failure = {"validation_error": {"couriers": [] }}
     if "data" not in request.json.keys():
-        return ("Data not found", 400)
+        return (failure, 400)
 
     result = {"couriers" : [] }
-    failure = {"validation_error": {"couriers": [] }}
 
     right_types = set(["foot", "bike", "car"])
     right_keys = set(["courier_id", "courier_type", "regions", "working_hours"])
@@ -122,7 +123,7 @@ def post_couriers():
                 failure["validation_error"]["couriers"].append({"id" : courier["courier_id"]})
                 break
             except:
-                return ("Bad request", 400)
+                return (failure, 400)
 
         try:
             assert courier["courier_id"] > 0
@@ -144,20 +145,20 @@ def post_couriers():
             failure["validation_error"]["couriers"].append({"id" : courier["courier_id"]})
 
     if failure["validation_error"]["couriers"]:
-        return (failure, 400)
+        return (jsonify(failure), 400)
     db.session.commit()
     return (result, 201)
 
 
 @app.route("/orders", methods=["POST"])
 def post_orders():
+    failure = {"validation_error": {"orders": [] }}
     if not request.is_json:
-        return abort (400, "Data format not json")
+        return abort (failure, 400)
     if "data" not in request.json.keys():
-        return abort (400, "Data not found")
+        return abort (failure, 400)
 
     result = {"orders" : [] }
-    failure = {"validation_error": {"orders": [] }}
 
     right_keys = set(["order_id", "weight", "region", "delivery_hours"])
 
@@ -169,7 +170,7 @@ def post_orders():
                 failure["validation_error"]["orders"].append(order["order_id"])
                 break
             except:
-                return (400, "Bad request")
+                return ("Bad request", 400)
 
         try:
             assert order["order_id"] > 0
@@ -190,22 +191,22 @@ def post_orders():
             failure["validation_error"]["orders"].append({"id":order["order_id"]})
 
     if failure["validation_error"]["orders"]:
-        return (400, failure)
+        return (jsonify(failure), 400)
     db.session.commit()
-    return (201, result)
+    return (jsonify(result), 201)
 
 
 @app.route("/couriers/<courier_id>", methods=["PATCH"])
 def patch_couriers(courier_id):
     if not request.is_json:
-        return (400, "Data format not json")
+        return ("Bad lequest", 400)
     right_keys = set(["courier_type", "regions", "working_hours"])
     if set(request.json.keys()) - right_keys:
-        return (400, "Bad request")
+        return ("Bad request", 400)
 
-    couriers = Courier.query.filter_by(courier_id=request.json["courier_id"]).all()
+    couriers = Courier.query.filter_by(courier_id=courier_id).all()
     if not couriers:
-        return (404, "Courier not found")
+        return ("Bad request", 400)
 
     weights = {"foot": 1000, "bike": 1500, "car": 5000}
     courier = couriers[0]
@@ -213,10 +214,10 @@ def patch_couriers(courier_id):
     old_regions = Courier_regions.query.filter_by(courier_id=courier_id).all()
     old_wo_hours = Courier_work_hours.query.filter_by(courier_id=courier_id).all()
 
-    if True:
+    try:
         result = {"courier_id" : courier_id}
         result["regions"] = [region.region for region in old_regions]
-        result["courier_type"] = courier.cour_type
+        result["courier_type"] = courier.courier_type
         result["working_hours"] = [hour.text for hour in old_wo_hours]
 
         wrong_orders = []
@@ -228,7 +229,7 @@ def patch_couriers(courier_id):
             for new_region in request.json["regions"]:
                 region_to_commit = Courier_regions(region=new_region, courier_id=courier_id)
                 db.session.add(region_to_commit)
-            wrong_orders.extend(Order.query.filter_by(assigned_to=courier_id).filter_by(completed=0).filter(not_(Order.region.in_(request.json["regions"]))).all())
+            wrong_orders.extend(Order.query.filter_by(assigned_to=courier_id).filter_by(completed=0).filter(~Order.region.in_(request.json["regions"])).all())
 
         if "courier_type" in request.json.keys():
             result["courier_type"] = request.json["courier_type"]
@@ -243,12 +244,13 @@ def patch_couriers(courier_id):
             assert request.json["working_hours"]
             result["working_hours"] = request.json["working_hours"]
             orders = Order.query.filter_by(assigned_to=courier_id).filter_by(completed=0).all()
-            delivers = Deli_hours.query.filter(Deli_hours.order_id.in_(order_ids)).all()
             order_ids = [order.order_id for order in orders]
+            delivers = Deli_hours.query.filter(Deli_hours.order_id.in_(order_ids)).all()
+            
             # making dict for checking is order is still valid
             good_order = dict(zip(order_ids, [False] * len(order_ids)))
             for hour in request.json["working_hours"]:
-                hours_to_commit = Courier_work_hours(hours=hours, courier_id=courier_id)
+                hours_to_commit = Courier_work_hours(hours=hour, courier_id=courier_id)
                 start, end = hours_to_commit.start_time, hours_to_commit.end_time
                 db.session.add(hours_to_commit)
                 for deli in delivers:
@@ -260,24 +262,24 @@ def patch_couriers(courier_id):
             wr_order.assigned_to = 0
         
         db.session.commit()
-        return (200, result)
-    else:
-        return (400, "Bad request")
+        return (jsonify(result), 200)
+    except:
+        return ("Bad request", 400)
 
 
 @app.route("/orders/assign", methods=["POST"])
 def assign_orders():
     if not request.is_json:
-        return (400, "Data format not json")
+        return ("Data format not json", 400)
     if "courier_id" not in request.json.keys():
-        return (400, "Courier wasn't sent")
+        return ("Courier wasn't sent", 400)
 
     weights = {"foot": 1000, "bike": 1500, "car": 5000}
     courier = Courier.query.filter_by(courier_id=request.json["courier_id"]).all()
     result = {"orders" : []}
 
     if not courier:
-        return (400, "Bad request")
+        return ("Bad request", 400)
 
     capacity = weights[courier[0].courier_type]
     cour_id = courier[0].courier_id
@@ -310,7 +312,7 @@ def assign_orders():
     if result["orders"]:
         db.session.commit()
         result["assign_time"] = current_time
-    return (200, result)
+    return (jsonify(result), 200)
 
 @app.route("/orders/complete", methods=["POST"])
 def complete_orders():
@@ -322,26 +324,26 @@ def complete_orders():
         return (400, "Bad request")
 
     cour_id = request.json["courier_id"]
-    orde_id = request.json["order_id"]
-    order = Order.query.filter_by(comlpeted=0).filter_by(assigned_to=cour_id).filter_by(orter_id=orde_id).all()
+    order_id = request.json["order_id"]
+    order = Order.query.filter_by(completed=0).filter_by(assigned_to=cour_id).filter_by(order_id=order_id).all()
 
     if not order:
-        return (400, "Bad request")
-    if True: #plz reploce me with try
+        return ("Bad request", 400)
+    try: #plz reploce me with try
         parser.parse(request.json["complete_time"])
-    else:
-        return (400, "Bad time format")
+    except:
+        return ("Bad time format", 400)
 
     order[0].comlpeted = 1
     order[0].completed_when = request.json["complete_time"]
     db.session.commit()
-    result = {"order_id" : orde_id}
-    return (result, 200)
+    result = {"order_id" : order_id}
+    return (jsonify(result), 200)
 
 
 @app.route("/couriers/<courier_id>", methods=["GET"])
 def get_courier(courier_id):
-    return (404, "Not implemented")
+    return ({"response": "Not implemented"}, 404)
 
 
 if __name__ == "__main__":
