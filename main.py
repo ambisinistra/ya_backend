@@ -1,10 +1,9 @@
 import datetime
+from dateutil import parser
 
 from flask import Flask, request, abort
 from flask_restful import Api
 from flask_sqlalchemy import SQLAlchemy
-
-from sqlalchemy import CheckConstraint
 
 
 app = Flask(__name__)
@@ -203,13 +202,12 @@ def patch_couriers(courier_id):
 
 @app.route("/orders/assign", methods=["POST"])
 def assign_orders():
-    print (request.json.keys())
     if not request.is_json:
         return abort (400, "Data format not json")
     if "courier_id" not in request.json.keys():
         return abort (400, "Courier was'nt sent")
 
-    weights = {"foot": 10.0, "bike": 15.0, "car": 50.0}
+    weights = {"foot": 1000, "bike": 1500, "car": 5000}
     courier = Courier.query.filter_by(courier_id=request.json["courier_id"]).all()
     result = {"orders" : []}
 
@@ -251,10 +249,29 @@ def assign_orders():
 
 @app.route("/orders/complete", methods=["POST"])
 def complete_orders():
-    return {404: "not implemented"}
+    if not request.is_json:
+        return abort (400, "Data format not json")
+    keys = set(request.json.keys())
+    right_keys = set(["courier_id", "order_id", "complete_time"])
+    if keys - right_keys or right_keys - keys:
+        return abort (400)
 
+    cour_id = request.json["courier_id"]
+    orde_id = request.json["order_id"]
+    order = Order.query.filter_by(comlpeted=0).filter_by(assigned_to=cour_id).filter_by(orter_id=orde_id).all()
 
+    if not order:
+        return ("Bad order request", 400)
+    if True: #plz reploce me with try
+        parser.parse(request.json["complete_time"])
+    else:
+        return ("Bad time format", 400)
 
+    order[0].comlpeted = 1
+    order[0].completed_when = request.json["complete_time"]
+    db.session.commit()
+    result = {"order_id" : orde_id}
+    return (result, 200)
 
 
 @app.route("/couriers/<courier_id>", methods=["GET"])
