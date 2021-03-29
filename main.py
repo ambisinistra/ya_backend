@@ -193,11 +193,41 @@ def post_orders():
 @app.route("/couriers/<courier_id>", methods=["PATCH"])
 def patch_couriers(courier_id):
     if not request.is_json:
-        return abort (400, message="Data format not json")
-    if "data" not in request.json.keys():
-        return abort (400, message="Data not found")
+        return abort (400, "Data format not json")
+    right_keys = set(["courier_id", "courier_type", "regions", "working_hours"])
+    if set(request.json.keys()) - right_keys or "courier_id" not in request.json.keys():
+        return abort (400)
 
-    return {404: "not implemented"}
+    couriers = Courier.query.filter_by(courier_id=request.json["courier_id"]).all()
+    if not couriers:
+        return ("Courier not found", 404)
+    courier = couriers[0]
+    if True:
+        wrong_orders = []
+        if "regions" in request.json.keys():
+            old_regions = Courier_regions.query.filter_by(courier_id=courier.courier_id)
+            for old_region in old_regions:
+                db.session.delete(old_region)
+            for new_region in courier["regions"]:
+                region_to_commit = Courier_regions(region=new_region, courier_id=courier["courier_id"])
+                db.session.add(region_to_commit)
+            wrong_orders.append(Order.query.filter_by(assigned_to=courier["courier_id"]).filter_by(completed=0).filter(not_(Order.region.in_(courier["regions"]))).all())
+
+        if "courier_type" in request.json.keys():
+            weights = {"foot": 1000, "bike": 1500, "car": 5000}
+            old_weight = weights[courier.courier_type]
+            new_weight = weights[request.json["courier_type"]]
+            assert request.json["courier_type"] in ["foot", "bike", "car"]
+            courier.courier_type = request.json["courier_type"]
+            if old_weight > new_weight:
+                wrong_orders.append(Order.query.filter_by(assigned_to=courier.courier_id).filter_by(completed=0).filter(Order.weight > new_weight).all())
+
+        for wr_order in wrong_orders:
+            wr_order.assigned_to = 0
+
+        db.session.commit()
+    else:
+        return ("Bad request", 400)
 
 
 @app.route("/orders/assign", methods=["POST"])
