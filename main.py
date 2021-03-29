@@ -50,6 +50,7 @@ class Courier_work_hours(db.Model):
         start, end = hours.split('-')
         start_h, start_m = map(int, start.split(':'))
         end_h, end_m = map(int, end.split(':'))
+        assert len(hours) == 11
         assert 0 <= start_h <= 23
         assert 0 <= end_h <= 23
         assert 0 <= start_m <= 59
@@ -88,6 +89,8 @@ class Deli_hours(db.Model):
         start, end = hours.split('-')
         start_h, start_m = map(int, start.split(':'))
         end_h, end_m = map(int, end.split(':'))
+
+        assert len(hours) == 11
         assert 0 <= start_h <= 23
         assert 0 <= end_h <= 23
         assert 0 <= start_m <= 59
@@ -206,19 +209,15 @@ def patch_couriers(courier_id):
 
     weights = {"foot": 1000, "bike": 1500, "car": 5000}
     courier = couriers[0]
-    new_weight = weights[courier.courier_type]
-    old_regions = Courier_regions.query.filter_by(courier_id=courier.courier_id).all()
-    old_regions_ids = [old_region.]
+    old_type = courier.courier_type
+    old_regions = Courier_regions.query.filter_by(courier_id=courier_id).all()
     old_wo_hours = Courier_work_hours.query.filter_by(courier_id=courier_id).all()
 
     if True:
-
         result = {"courier_id" : courier_id}
-        get_regions = Courier_regions.query.filter_by(courier_id=courier_id).all()
-        result["regions"] = [region.region for region in get_regions]
+        result["regions"] = [region.region for region in old_regions]
         result["courier_type"] = courier.cour_type
-        get_hours = Courier_work_hours.query.filter_by(courier_id=couriel_id).all()
-        result["working_hours"] = [hour.text for hour in get_hours]
+        result["working_hours"] = [hour.text for hour in old_wo_hours]
 
         wrong_orders = []
         if "regions" in request.json.keys():
@@ -227,10 +226,9 @@ def patch_couriers(courier_id):
             for old_region in old_regions:
                 db.session.delete(old_region)
             for new_region in request.json["regions"]:
-                region_to_commit = Courier_regions(region=new_region, courier_id=courier["courier_id"])
+                region_to_commit = Courier_regions(region=new_region, courier_id=courier_id)
                 db.session.add(region_to_commit)
-            wrong_orders.extend(Order.query.filter_by(assigned_to=courier["courier_id"]).filter_by(completed=0).filter(not_(Order.region.in_(courier["regions"]))).all())
-            old_regions = [new_region for ]
+            wrong_orders.extend(Order.query.filter_by(assigned_to=courier_id).filter_by(completed=0).filter(not_(Order.region.in_(request.json["regions"]))).all())
 
         if "courier_type" in request.json.keys():
             result["courier_type"] = request.json["courier_type"]
@@ -245,16 +243,17 @@ def patch_couriers(courier_id):
             assert request.json["working_hours"]
             result["working_hours"] = request.json["working_hours"]
             orders = Order.query.filter_by(assigned_to=courier_id).filter_by(completed=0).all()
-            order_ids = [order.order_id for order in orders]
-            good_order = dict(zip(order_ids, [False] * len(order_ids)))
-        for hour in courier["working_hours"]:
-            start, end = hour.start_time, hour.end_time
-            hours_to_commit = Courier_work_hours(hours=hours, courier_id=courier["courier_id"])
-            db.session.add(hours_to_commit)
             delivers = Deli_hours.query.filter(Deli_hours.order_id.in_(order_ids)).all()
-            for deli in delivers:
-                if deli.start_time >= start and deli.start_time < end or deli.start_time <= start and deli.end_time > start:
-                    good_order[deli.order_id] = True
+            order_ids = [order.order_id for order in orders]
+            # making dict for checking is order is still valid
+            good_order = dict(zip(order_ids, [False] * len(order_ids)))
+            for hour in request.json["working_hours"]:
+                hours_to_commit = Courier_work_hours(hours=hours, courier_id=courier_id)
+                start, end = hours_to_commit.start_time, hours_to_commit.end_time
+                db.session.add(hours_to_commit)
+                for deli in delivers:
+                    if deli.start_time >= start and deli.start_time < end or deli.start_time <= start and deli.end_time > start:
+                        good_order[deli.order_id] = True
             [wrong_orders.append(order) for order in orders if good_order[order.order_id]]
 
         for wr_order in wrong_orders:
