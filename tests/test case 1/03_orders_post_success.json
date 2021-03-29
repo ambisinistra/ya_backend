@@ -8,15 +8,15 @@
                 {
                     "order_id": 1,
                     "weight": 0.23,
-                    "region": 12,
+                    "region": 2,
                     "delivery_hours": ["09:00-18:00"]
                 },
 
                 {
                     "order_id": 2,
                     "weight": 15,
-                    "region": 1,
-                    "delivery_hours": ["09:00-18:00"]
+                    "region": 6,
+                    "delivery_hours": ["10:00-13:00"]
                 },
         
                 {

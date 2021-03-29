@@ -1,7 +1,7 @@
 import datetime
 from dateutil import parser
 
-from flask import Flask, request, abort
+from flask import Flask, request
 from flask_restful import Api
 from flask_sqlalchemy import SQLAlchemy
 
@@ -135,7 +135,7 @@ def post_couriers():
                 region_to_commit = Courier_regions(region=region, courier_id=courier["courier_id"])
                 db.session.add(region_to_commit)
             if courier["courier_type"] not in right_types or Courier.query.filter_by(courier_id=courier["courier_id"]).all():
-                failure["validation_error"]["couriers"].append({"id" : courier["courier_id"])
+                failure["validation_error"]["couriers"].append({"id" : courier["courier_id"]})
             else:
                 courier_to_commit = Courier(courier_id=courier["courier_id"], courier_type=courier["courier_type"])
                 db.session.add(courier_to_commit)
