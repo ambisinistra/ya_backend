@@ -110,22 +110,17 @@ def post_couriers():
                 region_to_commit = Courier_regions(region=region, courier_id=courier["courier_id"])
                 db.session.add(region_to_commit)
             if courier["courier_type"] not in right_types or Courier.query.filter_by(courier_id=courier["courier_id"]).all():
-                print (courier["courier_type"], "vs", right_types, "is", courier["courier_type"] not in right_types)
-                print (Courier.query.filter_by(courier_id=courier["courier_id"]).all())
                 failure["validation_error"]["couriers"].append(courier["courier_id"])
             else:
                 courier_to_commit = Courier(courier_id=courier["courier_id"], courier_type=courier["courier_type"])
                 db.session.add(courier_to_commit)
                 result["couriers"].append(courier["courier_id"])
-            print ("ya smog")
-            print (failure["validation_error"]["couriers"])
         else:
             failure["validation_error"]["couriers"].append(courier["courier_id"])
 
     if failure["validation_error"]["couriers"]:
         return (failure, 400)
     db.session.commit()
-    print ("hi there")
     return (result, 201)
 
 
