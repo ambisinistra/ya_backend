@@ -31,14 +31,32 @@ class Courier_regions(db.Model):
     courier_id = db.Column(db.Integer, db.ForeignKey("couriers"))
     region = db.Column(db.Integer)
 
+    def __init__(self, region, courier_id):
+        assert type(region) == int
+        self.courier_id = courier_id
+        self.region = region
+
 
 class Courier_work_hours(db.Model):
     __tablename__ = "courier_work_hours"
 
     wo_ho_id = db.Column(db.Integer, primary_key=True, unique=True)
     courier_id = db.Column(db.Integer, db.ForeignKey("couriers"))
-    start_time = db.Column(db.DateTime)
-    end_time = db.Column(db.DateTime)
+    start_time = db.Column(db.Integer)
+    end_time = db.Column(db.Integer)
+
+    def __init__(self, hours, courier_id):
+        start, end = hours.split('-')
+        start_h, start_m = map(int, start.split(':'))
+        end_h, end_m = map(int, end.split(':'))
+        assert 0 <= start_h <= 23
+        assert 0 <= end_h <= 23
+        assert 0 <= start_m <= 59
+        assert 0 <= end_m <= 59
+
+        self.start_time = start_h * 60 + start_m
+        self.end_time = end_h * 60 + end_m
+        self.courier_id = courier_id
 
 
 class Orders(db.Model):
@@ -73,8 +91,6 @@ def post_couriers():
     right_types = set(["foot", "bike", "auto"])
     right_keys = set(["courier_id", "courier_type", "regions", "working_hours"])
 
-    session = db.create_session()
-
     for courier in request.json["data"]:
 
         keys = set(courier.keys())
@@ -85,28 +101,31 @@ def post_couriers():
             except:
                 return abort(400)
 
-        try:
+        if True:
+            assert courier["courier_id"] > 0
             for hours in courier["working_hours"]:
                 hours_to_commit = Courier_work_hours(hours=hours, courier_id=courier["courier_id"])
-                session.add(hours_to_commit)
+                db.session.add(hours_to_commit)
             for region in courier["regions"]:
                 region_to_commit = Courier_regions(region=region, courier_id=courier["courier_id"])
-                session.add(region_to_commit)
-            if courier["courier_type"] not in right_types or Courier.query.filter_by(courier_id=courier["courier_id"]):
+                db.session.add(region_to_commit)
+            if courier["courier_type"] not in right_types or Courier.query.filter_by(courier_id=courier["courier_id"]).all():
+                print (courier["courier_type"], "vs", right_types, "is", courier["courier_type"] not in right_types)
+                print (Courier.query.filter_by(courier_id=courier["courier_id"]).all())
                 failure["validation_error"]["couriers"].append(courier["courier_id"])
             else:
                 courier_to_commit = Courier(courier_id=courier["courier_id"], courier_type=courier["courier_type"])
-                session.add(courier_to_commit)
+                db.session.add(courier_to_commit)
                 result["couriers"].append(courier["courier_id"])
-        except:
+            print ("ya smog")
+            print (failure["validation_error"]["couriers"])
+        else:
             failure["validation_error"]["couriers"].append(courier["courier_id"])
-            break
 
     if failure["validation_error"]["couriers"]:
-        session.close_all()
         return (failure, 400)
-    session.commit()
-    session.close_all()
+    db.session.commit()
+    print ("hi there")
     return (result, 201)
 
 
