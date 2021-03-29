@@ -194,17 +194,19 @@ def post_orders():
 def patch_couriers(courier_id):
     if not request.is_json:
         return abort (400, "Data format not json")
-    right_keys = set(["courier_id", "courier_type", "regions", "working_hours"])
-    if set(request.json.keys()) - right_keys or "courier_id" not in request.json.keys():
+    right_keys = set(["courier_type", "regions", "working_hours"])
+    if set(request.json.keys()) - right_keys:
         return abort (400)
 
     couriers = Courier.query.filter_by(courier_id=request.json["courier_id"]).all()
     if not couriers:
         return ("Courier not found", 404)
     courier = couriers[0]
+    result = {"courier_id": courier_id, "courier_type": 0, "working_hours": [], "regions": []}
     if True:
         wrong_orders = []
         if "regions" in request.json.keys():
+            assert reqest.json["regions"]
             old_regions = Courier_regions.query.filter_by(courier_id=courier.courier_id)
             for old_region in old_regions:
                 db.session.delete(old_region)
@@ -221,6 +223,21 @@ def patch_couriers(courier_id):
             courier.courier_type = request.json["courier_type"]
             if old_weight > new_weight:
                 wrong_orders.append(Order.query.filter_by(assigned_to=courier.courier_id).filter_by(completed=0).filter(Order.weight > new_weight).all())
+
+        if "working_hours" in request.json.keys():
+            assert request.json["working_hours"]
+            orders = Order.query.filter_by(assigned_to=courier_id).filter_by(completed=0).all()
+            order_ids = [order.order_id for order in orders]
+            good_order = dict(zip(order_ids, [False] * len(order_ids)))
+        for hour in courier["working_hours"]:
+            start, end = hour.start_time, hour.end_time
+            hours_to_commit = Courier_work_hours(hours=hours, courier_id=courier["courier_id"])
+            db.session.add(hours_to_commit)
+            delivers = Deli_hours.query.filter(Deli_hours.order_id.in_(order_ids)).all()
+            for deli in delivers:
+                if deli.start_time >= start and deli.start_time < end or deli.start_time <= start and deli.end_time > start:
+                    good_order[deli.order_id] = True
+            [wrong_orders.append(order) for order in orders if good_order[order.order_id]]
 
         for wr_order in wrong_orders:
             wr_order.assigned_to = 0
