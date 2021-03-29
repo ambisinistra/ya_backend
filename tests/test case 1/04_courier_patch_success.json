@@ -3,7 +3,9 @@
     "address" : "/couriers/2",
     "body":
     {
-        "working_hours" : ["00:00-15:00"]
+        "working_hours" : ["00:00-15:00"],
+        "regions" : [2],
+        "courier_type" : "car"
     }
 }
 

@@ -145,8 +145,10 @@ def post_couriers():
             failure["validation_error"]["couriers"].append({"id" : courier["courier_id"]})
 
     if failure["validation_error"]["couriers"]:
+        db.session.close_all()
         return (jsonify(failure), 400)
     db.session.commit()
+    db.session.close_all()
     return (result, 201)
 
 
@@ -184,15 +186,17 @@ def post_orders():
             if Order.query.filter_by(order_id=order["order_id"]).all():
                 failure["validation_error"]["orders"].append(order["order_id"])
             else:
-                order_to_commit = Order(order_id=order["order_id"], weight=order["weight"], region=order["region"])
+                order_to_commit = Order(order_id=order["order_id"], weight=weight, region=order["region"])
                 db.session.add(order_to_commit)
                 result["orders"].append(order["order_id"])
         except:
             failure["validation_error"]["orders"].append({"id":order["order_id"]})
 
     if failure["validation_error"]["orders"]:
+        db.session.close_all()
         return (jsonify(failure), 400)
     db.session.commit()
+    db.session.close_all()
     return (jsonify(result), 201)
 
 
@@ -206,6 +210,7 @@ def patch_couriers(courier_id):
 
     couriers = Courier.query.filter_by(courier_id=courier_id).all()
     if not couriers:
+        db.session.close_all()
         return ("Bad request", 400)
 
     weights = {"foot": 1000, "bike": 1500, "car": 5000}
@@ -262,8 +267,10 @@ def patch_couriers(courier_id):
             wr_order.assigned_to = 0
         
         db.session.commit()
+        db.session.close_all()
         return (jsonify(result), 200)
     except:
+        db.session.close_all()
         return ("Bad request", 400)
 
 
@@ -279,6 +286,7 @@ def assign_orders():
     result = {"orders" : []}
 
     if not courier:
+        db.session.close_all()
         return ("Bad request", 400)
 
     capacity = weights[courier[0].courier_type]
@@ -311,6 +319,7 @@ def assign_orders():
 
     if result["orders"]:
         db.session.commit()
+        db.session.close_all()
         result["assign_time"] = current_time
     return (jsonify(result), 200)
 
@@ -329,21 +338,18 @@ def complete_orders():
 
     if not order:
         return ("Bad request", 400)
-    try: #plz reploce me with try
+    try:
         parser.parse(request.json["complete_time"])
     except:
+        db.session.close_all()
         return ("Bad time format", 400)
 
     order[0].comlpeted = 1
     order[0].completed_when = request.json["complete_time"]
     db.session.commit()
     result = {"order_id" : order_id}
+    db.session.close_all()
     return (jsonify(result), 200)
-
-
-@app.route("/couriers/<courier_id>", methods=["GET"])
-def get_courier(courier_id):
-    return ({"response": "Not implemented"}, 404)
 
 
 if __name__ == "__main__":
