@@ -1,0 +1,453 @@
+openapi: 3.0.0
+info:
+  title: Candy Delivery App
+  version: "1.0"
+servers:
+- url: /
+paths:
+  /couriers:
+    post:
+      description: Import couriers
+      operationId: couriers_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CouriersPostRequest'
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CouriersIds'
+          description: Created
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/inline_response_400'
+          description: Bad request
+      x-openapi-router-controller: openapi_server.controllers.default_controller
+  /couriers/{courier_id}:
+    get:
+      description: Get courier info
+      operationId: couriers_courier_id_get
+      parameters:
+      - explode: false
+        in: path
+        name: courier_id
+        required: true
+        schema:
+          type: integer
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourierGetResponse'
+          description: OK
+        "404":
+          description: Not found
+      x-openapi-router-controller: openapi_server.controllers.default_controller
+    patch:
+      description: Update courier by id
+      operationId: couriers_courier_id_patch
+      parameters:
+      - explode: false
+        in: path
+        name: courier_id
+        required: true
+        schema:
+          type: integer
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CourierUpdateRequest'
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourierItem'
+          description: Created
+        "400":
+          description: Bad request
+        "404":
+          description: Not found
+      x-openapi-router-controller: openapi_server.controllers.default_controller
+  /orders:
+    post:
+      description: Import orders
+      operationId: orders_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrdersPostRequest'
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrdersIds'
+          description: Created
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/inline_response_400_1'
+          description: Bad request
+      x-openapi-router-controller: openapi_server.controllers.default_controller
+  /orders/assign:
+    post:
+      description: Assign orders to a courier by id
+      operationId: orders_assign_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrdersAssignPostRequest'
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/OrdersIds'
+                - $ref: '#/components/schemas/AssignTime'
+          description: OK
+        "400":
+          description: Bad request
+      x-openapi-router-controller: openapi_server.controllers.default_controller
+  /orders/complete:
+    post:
+      description: Marks orders as completed
+      operationId: orders_complete_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrdersCompletePostRequest'
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrdersCompletePostResponse'
+          description: OK
+        "400":
+          description: Bad request
+      x-openapi-router-controller: openapi_server.controllers.default_controller
+components:
+  schemas:
+    CouriersPostRequest:
+      additionalProperties: false
+      example:
+        data:
+        - regions:
+          - 6
+          - 6
+          working_hours:
+          - working_hours
+          - working_hours
+          courier_id: 0
+          courier_type: foot
+        - regions:
+          - 6
+          - 6
+          working_hours:
+          - working_hours
+          - working_hours
+          courier_id: 0
+          courier_type: foot
+      properties:
+        data:
+          items:
+            $ref: '#/components/schemas/CourierItem'
+          type: array
+      required:
+      - data
+      type: object
+    CourierItem:
+      additionalProperties: false
+      example:
+        regions:
+        - 6
+        - 6
+        working_hours:
+        - working_hours
+        - working_hours
+        courier_id: 0
+        courier_type: foot
+      properties:
+        courier_id:
+          type: integer
+        courier_type:
+          enum:
+          - foot
+          - bike
+          - car
+          type: string
+        regions:
+          items:
+            type: integer
+          type: array
+        working_hours:
+          items:
+            type: string
+          type: array
+      required:
+      - courier_id
+      - courier_type
+      - regions
+      - working_hours
+      type: object
+    CouriersIds:
+      additionalProperties: false
+      example:
+        couriers:
+        - id: 0
+        - id: 0
+      properties:
+        couriers:
+          items:
+            $ref: '#/components/schemas/CouriersIds_couriers'
+          type: array
+      required:
+      - couriers
+      type: object
+    CouriersIdsAP:
+      additionalProperties: true
+      properties:
+        couriers:
+          items:
+            additionalProperties: true
+            properties:
+              id:
+                type: integer
+            required:
+            - id
+            type: object
+          type: array
+      required:
+      - couriers
+      type: object
+    CourierGetResponse:
+      additionalProperties: false
+      example:
+        earnings: 5
+        regions:
+        - 6
+        - 6
+        working_hours:
+        - working_hours
+        - working_hours
+        rating: 1.4658129805029452
+        courier_id: 0
+        courier_type: foot
+      properties:
+        courier_id:
+          type: integer
+        courier_type:
+          enum:
+          - foot
+          - bike
+          - car
+          type: string
+        regions:
+          items:
+            type: integer
+          type: array
+        working_hours:
+          items:
+            type: string
+          type: array
+        rating:
+          type: number
+        earnings:
+          type: integer
+      required:
+      - courier_id
+      - courier_type
+      - earnings
+      - regions
+      - working_hours
+      type: object
+    CourierUpdateRequest:
+      additionalProperties: false
+      example:
+        regions:
+        - 0
+        - 0
+        working_hours:
+        - working_hours
+        - working_hours
+        courier_type: foot
+      properties:
+        courier_type:
+          enum:
+          - foot
+          - bike
+          - car
+          type: string
+        regions:
+          items:
+            type: integer
+          type: array
+        working_hours:
+          items:
+            type: string
+          type: array
+      type: object
+    OrdersPostRequest:
+      additionalProperties: false
+      example:
+        data:
+        - weight: 6.027456183070403
+          delivery_hours:
+          - delivery_hours
+          - delivery_hours
+          region: 1
+          order_id: 0
+        - weight: 6.027456183070403
+          delivery_hours:
+          - delivery_hours
+          - delivery_hours
+          region: 1
+          order_id: 0
+      properties:
+        data:
+          items:
+            $ref: '#/components/schemas/OrderItem'
+          type: array
+      required:
+      - data
+      type: object
+    OrderItem:
+      additionalProperties: false
+      example:
+        weight: 6.027456183070403
+        delivery_hours:
+        - delivery_hours
+        - delivery_hours
+        region: 1
+        order_id: 0
+      properties:
+        order_id:
+          type: integer
+        weight:
+          type: number
+        region:
+          type: integer
+        delivery_hours:
+          items:
+            type: string
+          type: array
+      required:
+      - delivery_hours
+      - order_id
+      - region
+      - weight
+      type: object
+    OrdersIds:
+      additionalProperties: false
+      example:
+        orders:
+        - id: 0
+        - id: 0
+      properties:
+        orders:
+          items:
+            $ref: '#/components/schemas/CouriersIds_couriers'
+          type: array
+      required:
+      - orders
+      type: object
+    OrdersIdsAP:
+      additionalProperties: true
+      properties:
+        orders:
+          items:
+            additionalProperties: true
+            properties:
+              id:
+                type: integer
+            required:
+            - id
+            type: object
+          type: array
+      required:
+      - orders
+      type: object
+    AssignTime:
+      additionalProperties: false
+      properties:
+        assign_time:
+          example: 2021-01-10T09:32:14.42Z
+          type: string
+      type: object
+    OrdersAssignPostRequest:
+      additionalProperties: false
+      example:
+        courier_id: 0
+      properties:
+        courier_id:
+          type: integer
+      required:
+      - courier_id
+      type: object
+    OrdersCompletePostRequest:
+      additionalProperties: false
+      example:
+        complete_time: 2021-01-10T10:33:01.42Z
+        courier_id: 0
+        order_id: 6
+      properties:
+        courier_id:
+          type: integer
+        order_id:
+          type: integer
+        complete_time:
+          example: 2021-01-10T10:33:01.42Z
+          type: string
+      required:
+      - complete_time
+      - courier_id
+      - order_id
+      type: object
+    OrdersCompletePostResponse:
+      additionalProperties: false
+      example:
+        order_id: 0
+      properties:
+        order_id:
+          type: integer
+      required:
+      - order_id
+      type: object
+    inline_response_400:
+      properties:
+        validation_error:
+          $ref: '#/components/schemas/CouriersIdsAP'
+      required:
+      - validation_error
+      type: object
+    inline_response_400_1:
+      properties:
+        validation_error:
+          $ref: '#/components/schemas/OrdersIdsAP'
+      required:
+      - validation_error
+      type: object
+    CouriersIds_couriers:
+      example:
+        id: 0
+      properties:
+        id:
+          type: integer
+      required:
+      - id
+      type: object
